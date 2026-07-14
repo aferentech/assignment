@@ -1,0 +1,46 @@
+replicaCount: 2
+
+image:
+  pullPolicy: Always
+
+alloydb:
+  proxyImage: "gcr.io/alloydb-connectors/alloydb-auth-proxy:1.10.1"
+  port: 5432
+
+secrets:
+  dbPasswordSecret: "assignment-dev-app-db-password"
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: true
+  staticIpName: ""
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# PodDisruptionBudget — cap voluntary disruptions (node drains, upgrades).
+pdb:
+  enabled: true
+  maxUnavailable: 1
+  # minAvailable: 1   # set to use minAvailable instead of maxUnavailable
+
+probes:
+  liveness:
+    initialDelaySeconds: 15
+    periodSeconds: 20
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readiness:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3

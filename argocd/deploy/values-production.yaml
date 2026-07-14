@@ -1,0 +1,97 @@
+argo-cd:
+  global:
+    domain: argocd.aferen.tech
+
+  configs:
+    params:
+      server.insecure: true
+      applicationsetcontroller.policy: create-update
+      applicationsetcontroller.enable.policy.override: true
+    rbac:
+      create: false
+    cm:
+      admin.enabled: true
+      timeout.reconciliation: 30s
+
+  controller:
+    replicas: 1
+    resources:
+      limits:
+        cpu: 4
+        memory: 4Gi
+      requests:
+        cpu: 100m
+        memory: 100Mi
+    metrics:
+      enabled: true
+      service:
+        clusterIP: None
+      serviceMonitor:
+        enabled: true
+
+  server:
+    replicas: 1
+    service:
+      annotations:
+        cloud.google.com/neg: '{"ingress": true}'
+        cloud.google.com/backend-config: '{"ports": {"http":"argocd-server"}}'
+    ingress:
+      controller: gke
+      enabled: true
+      gke:
+        backendConfig:
+          healthCheck:
+            checkIntervalSec: 30
+            timeoutSec: 5
+            healthyThreshold: 1
+            unhealthyThreshold: 2
+            type: HTTP
+            requestPath: /healthz
+            port: 8080
+
+        frontendConfig:
+          redirectToHttps:
+            enabled: true
+        managedCertificate:
+          create: true
+      tls: false
+      annotations:
+        kubernetes.io/ingress.class: gce
+        networking.gke.io/managed-certificates: argocd-server
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+
+  applicationSet:
+    replicas: 1
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+
+  repoServer:
+    replicas: 1
+    resources:
+      limits:
+        cpu: 2
+        memory: 4Gi
+      requests:
+        cpu: 100m
+        memory: 100Mi
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+
+  dex:
+    enabled: false
+
+  notifications:
+    enabled: false
+
+  redis:
+    enabled: false
+
+  redis-ha:
+    enabled: true

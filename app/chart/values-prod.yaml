@@ -1,0 +1,26 @@
+project: home-assignment-devops-prod
+
+replicaCount: 2
+
+image:
+  repository: northamerica-northeast2-docker.pkg.dev/home-assignment-devops-prod/assignment-prod-containers/customer-app
+  tag: "latest"
+
+serviceAccount:
+  name: app-sa
+  gcpServiceAccount: assignment-prod-app@home-assignment-devops-prod.iam.gserviceaccount.com
+
+alloydb:
+  instanceUri: projects/home-assignment-devops-prod/locations/northamerica-northeast2/clusters/assignment-prod-app/instances/assignment-prod-app-primary
+  database: postgres
+  user: app_user
+
+secrets:
+  dbPasswordSecret: assignment-prod-app-db-password
+
+ingress:
+  enabled: true
+  host: customer-api.aferen.tech
+
+autoscaling:
+  enabled: false

@@ -1,0 +1,33 @@
+# Terraform
+**/.terraform/*
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+.terraform.lock.hcl
+
+# Helm
+# Packaged chart archives.
+*.tgz
+# Downloaded chart dependencies (the deps subdir inside a chart).
+**/charts/*/charts/
+# Rendered/values overrides written locally.
+**/values.local.yaml
+# Keep Chart.lock and .helmignore tracked on purpose (they belong in git).
+
+# Secrets / creds
+*.json.key
+sa-key*.json
+*.pem
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,103 @@
+name: terraform
+
+on:
+  pull_request:
+    paths: ["iac/**", ".github/workflows/terraform.yml"]
+  push:
+    branches: [main]
+    paths: ["iac/**", ".github/workflows/terraform.yml"]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to apply
+        type: choice
+        options: [prod] # [dev, prod]
+        default: prod
+
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: iac/infra
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [prod] # [dev, prod]
+    environment: ${{ matrix.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - run: terraform init -input=false
+
+      - name: Select workspace
+        run: terraform workspace select ${{ matrix.environment }} || terraform workspace new ${{ matrix.environment }}
+
+      - run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Plan
+        id: plan
+        run: terraform plan -input=false -no-color
+
+      - name: Comment plan on PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const out = `${{ steps.plan.outputs.stdout }}`.slice(-60000);
+            const body = [
+              `#### Terraform Plan — \`${{ matrix.environment }}\` (${{ steps.plan.outcome }})`,
+              '<details><summary>Show plan</summary>',
+              '', '```', out, '```', '', '</details>',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
+
+  apply:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TF_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'prod' }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'prod' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - run: terraform init -input=false
+
+      - name: Select workspace
+        run: terraform workspace select "$TF_ENV" || terraform workspace new "$TF_ENV"
+
+      - name: Apply
+        run: terraform apply -input=false -auto-approve

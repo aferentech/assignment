@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.serviceAccount.name }}
+  labels:
+    app: {{ .Values.serviceAccount.name }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ .Values.serviceAccount.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.serviceAccount.name }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.targetPort }}
+          env:
+            # DB reached over localhost via the Auth Proxy sidecar (private).
+            - name: DB_HOST
+              value: "127.0.0.1"
+            - name: DB_PORT
+              value: "{{ .Values.alloydb.port }}"
+            - name: DB_NAME
+              value: "{{ .Values.alloydb.database }}"
+            - name: DB_USER
+              value: "{{ .Values.alloydb.user }}"
+            - name: DB_PASSWORD_FILE
+              value: "/mnt/secrets/db-password"
+          volumeMounts:
+            - name: secrets-store
+              mountPath: "/mnt/secrets"
+              readOnly: true
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.service.targetPort }}
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.service.targetPort }}
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+
+        - name: alloydb-auth-proxy
+          image: {{ .Values.alloydb.proxyImage }}
+          args:
+            - "--auto-iam-authn=false"
+            - "--port={{ .Values.alloydb.port }}"
+            - "{{ .Values.alloydb.instanceUri }}"
+          securityContext:
+            runAsNonRoot: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+
+      volumes:
+        - name: secrets-store
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: {{ .Values.serviceAccount.name }}-secrets

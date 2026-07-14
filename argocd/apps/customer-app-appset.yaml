@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: customer-app
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchExpressions:
+            - { key: env, operator: Exists }
+  template:
+    metadata:
+      name: "customer-app-{{.metadata.labels.env}}"
+      labels:
+        env: "{{.metadata.labels.env}}"
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/aferentech/assignment.git
+        targetRevision: main
+        path: app/chart
+        helm:
+          valueFiles:
+            - values.yaml
+            - "values-{{.metadata.labels.env}}.yaml"
+      destination:
+        server: "{{.server}}"
+        namespace: app
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

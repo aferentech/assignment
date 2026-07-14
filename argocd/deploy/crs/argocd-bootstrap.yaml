@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: argocd-bootstrap
+  namespace: argocd
+spec:
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  destinations:
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+  orphanedResources:
+    warn: false
+  sourceRepos:
+    - "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-bootstrap
+  namespace: argocd
+  labels:
+    app-type: argocd
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  source:
+    path: argocd/config
+    repoURL: "https://github.com/aferentech/assignment.git"
+    targetRevision: main
+    directory:
+      recurse: true
+  project: argocd-bootstrap
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
