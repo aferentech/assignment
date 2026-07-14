@@ -1,6 +1,6 @@
 project: home-assignment-devops-prod
 
-replicaCount: 2
+replicaCount: 3
 
 image:
   repository: northamerica-northeast2-docker.pkg.dev/home-assignment-devops-prod/assignment-prod-containers/customer-app

@@ -53,7 +53,7 @@ environments = {
       spot = {
         machine_type = "e2-standard-4"
         min_count    = 0
-        max_count    = 12
+        max_count    = 15
         spot         = true
         labels       = { workload = "batch" }
         taints = [{
